@@ -5,12 +5,16 @@
  */
 package Controller;
 
+import Model.Person;
 import Model.Post;
 import Model.User;
+import java.util.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import javax.swing.JOptionPane;
 
@@ -25,18 +29,37 @@ public class Controller {
     public static ArrayList<User> getAllUsers() {
         ArrayList<User> users = new ArrayList<>();
         conn.connect();
-        String query = "SELECT * FROM datauser";
+        String query = "SELECT user.*,person.Password FROM user JOIN person ON user.Username = person.Username";
         try {
             Statement stmt = conn.con.createStatement();
             ResultSet rs = stmt.executeQuery(query);
             while (rs.next()) {
                 User user = new User();
-                user.setNickname(rs.getString("Nickname"));
-                user.setUsername(rs.getString("Username"));
-                user.setEmail(rs.getString("Email"));
-                user.setJumlahTeman(rs.getInt("JumlahTeman"));
-                user.setProfilePict(rs.getString("ProfilePict"));
+                user.setNickname(rs.getString("user.Nickname"));
+                user.setUsername(rs.getString("user.Username"));
+                user.setEmail(rs.getString("user.Email"));
+                user.setJumlahTeman(rs.getInt("user.JumlahTeman"));
+                user.setProfilePict(rs.getString("user.ProfilePict"));
+                user.setPassword(rs.getString("person.Password"));
                 users.add(user);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return (users);
+    }
+    
+    public static ArrayList<Person> getAllPerson() {
+        ArrayList<Person> users = new ArrayList<>();
+        conn.connect();
+        String query = "SELECT * FROM person";
+        try {
+            Statement stmt = conn.con.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+            while (rs.next()) {
+                User user = new User();
+                user.setUsername(rs.getString("Username"));
+                user.setPassword(rs.getString("Password"));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -55,8 +78,8 @@ public class Controller {
             while (rs.next()) {
                 Post post = new Post();
                 post.setIdPost(rs.getInt("IdPost"));
-                post.setPostUsername(rs.getString("PostUsername"));
-                post.setWaktuPost(rs.getDate("WaktuPost"));
+                post.setPostNickname(rs.getString("PostNickname"));
+                post.setWaktuPost(rs.getString("WaktuPost"));
                 post.setImagepath(rs.getString("Imagepath"));
                 posts.add(post);
             }
@@ -69,7 +92,7 @@ public class Controller {
     // SELECT WHERE
     public static User getUser(String Username) {
         conn.connect();
-        String query = "SELECT * FROM datauser WHERE Username='" + Username + "'";
+        String query = "SELECT * FROM user WHERE Username='" + Username + "'";
         User user = new User();
         try {
             Statement stmt = conn.con.createStatement();
@@ -90,20 +113,33 @@ public class Controller {
     // INSERT
     public static boolean insertNewUser(User user) {
         conn.connect();
-        String query = "INSERT INTO datauser VALUES(?,?,?,?,?)";
+        String query_InsertToUser = "INSERT INTO user VALUES(?,?,?,?,?,?)";
+        String query_InsertToPerson = "INSERT INTO person VALUES (?,?)";
+        boolean valid_1 = false,valid_2 = false;
         try {
-            PreparedStatement stmt = conn.con.prepareStatement(query);
-            stmt.setString(1, user.getNickname());
-            stmt.setString(2, user.getUsername());
-            stmt.setString(3, user.getPassword());
-            stmt.setInt(4, user.getJumlahTeman());
-            stmt.setString(5, user.getProfilePict());
+            PreparedStatement stmt = conn.con.prepareStatement(query_InsertToPerson);
+            stmt.setString(1, user.getUsername());
+            stmt.setString(2, user.getPassword());
             stmt.executeUpdate();
-            return (true);
+            valid_1 = true;
         } catch (SQLException e) {
             e.printStackTrace();
-            return (false);
         }
+        try{
+            PreparedStatement stmt_2 = conn.con.prepareStatement(query_InsertToUser);
+            ArrayList<User> listUser = getAllUsers();
+            stmt_2.setInt(1, listUser.size() + 1);
+            stmt_2.setString(2, user.getUsername());
+            stmt_2.setString(3, user.getNickname());
+            stmt_2.setString(4, user.getEmail());
+            stmt_2.setInt(5, user.getJumlahTeman());
+            stmt_2.setString(6, user.getProfilePict());
+            stmt_2.executeUpdate();
+            valid_2 = true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return(valid_1 && valid_2);
     }
 
     // UPDATE
@@ -155,17 +191,9 @@ public class Controller {
             return (false);
         }
     }
-    public boolean ValidasiAccount(String Username, String Password){
-        ArrayList<User> listUsers = getAllUsers();
-        for(int i = 0; i < listUsers.size(); i++){
-            if(listUsers.get(i).getUsername().equals(Username) && listUsers.get(i).getPassword().equals(Password)){
-                return(true);
-            }
-        }
+    
+    public static boolean insertNewPost(Post post){
         return false;
-    }
-    public void insertNewPost(){
-        
     }
     public static boolean deletePost(int idPost){
         conn.connect();
@@ -180,15 +208,42 @@ public class Controller {
             return (false);
         }
     }
-    public void TimeLine(){ //nanti
-        
-    }
-    public void recoverPassword(String Username, String password, String email){
+    public boolean recoverPassword(String Username, String Password){
         conn.connect();
         
+        String query = "Update person set Password = '" + Password +"' where Username = '" + Username+ "';";
         
+        try{
+            Statement stmt = conn.con.createStatement();
+            stmt.executeUpdate(query);
+            return(true);
+        } catch (SQLException ex){
+            ex.printStackTrace();
+            return(false);
+        }
     }
     public void LoginSuccess(String username, String Password){
         JOptionPane.showMessageDialog(null, "Username = " + username + " password = " + Password);
+    }
+    public static String getTanggal() {  
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd");  
+        Date date = new Date();  
+        return dateFormat.format(date);  
+    }  
+     
+    public static String getWaktu() {  
+        DateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");  
+        Date date = new Date();  
+        return dateFormat.format(date);  
+    } 
+    public static boolean isValidEmail(String email) {
+        boolean validate;
+        String emailPattern = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+";
+        String emailPattern2 = "[a-zA-Z0-9._-]+@[a-z]+\\.+[a-z]+\\.+[a-z]+";
+ 
+        if (email.matches(emailPattern)) {
+            validate = true;
+        } else validate = email.matches(emailPattern2);
+        return validate;
     }
 }
